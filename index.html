@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>나자신 서바이벌</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css">
+<style>
+  :root{
+    --paper:#ECEEF1;
+    --floor:#E3E6EA;
+    --line:#CFD4DA;
+    --ghost:#98A0A9;
+    --ink:#1B2430;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;overflow:hidden;
+    background:var(--paper);color:var(--ink);
+    font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+  }
+  #stage{position:fixed;inset:0;display:block;touch-action:none;}
+  #room{position:fixed;inset:0;display:none;}
+  #room canvas{display:block;width:100%;height:100%;}
+
+  #ui{
+    position:fixed;inset:0;display:none;
+    flex-direction:column;align-items:center;justify-content:flex-end;
+    padding:0 22px calc(9vh + env(safe-area-inset-bottom));
+    pointer-events:none;
+  }
+  #ui.on{display:flex;}
+
+  #count{
+    font-size:clamp(56px,17vw,120px);
+    font-weight:200;letter-spacing:-0.05em;line-height:1;
+    opacity:0;transition:opacity .7s ease;
+  }
+  #count.on{opacity:1;}
+
+  #acts{
+    margin-top:26px;width:100%;max-width:360px;
+    display:flex;flex-direction:column;gap:10px;
+    opacity:0;transform:translateY(10px);
+    transition:opacity .5s ease,transform .5s ease;
+  }
+  #acts.on{opacity:1;transform:none;pointer-events:auto;}
+
+  .btn{
+    width:100%;padding:15px 16px;
+    font:inherit;font-size:16px;font-weight:600;letter-spacing:-0.03em;
+    color:var(--ink);background:#fff;
+    border:2px solid var(--ink);border-radius:0;
+    cursor:pointer;transition:transform .06s ease,box-shadow .06s ease;
+    box-shadow:4px 4px 0 var(--ink);
+  }
+  .btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink);}
+  .btn:focus-visible{outline:3px solid var(--ghost);outline-offset:3px;}
+  .btn.quiet{background:transparent;border-color:var(--ghost);color:#5c646d;box-shadow:none;}
+  .btn.quiet:active{transform:none;}
+  .btn[disabled]{opacity:.45;pointer-events:none;}
+
+  #panel{
+    position:fixed;inset:0;display:none;
+    flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;padding:26px 22px calc(26px + env(safe-area-inset-bottom));
+    background:rgba(236,238,241,.96);
+  }
+  #panel.on{display:flex;}
+  #panel .box{width:100%;max-width:360px;}
+  #nameRow{display:flex;gap:8px;}
+  #nameIn{
+    flex:1;min-width:0;padding:14px 12px;
+    font:inherit;font-size:16px;font-weight:600;letter-spacing:-0.03em;
+    border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:0;
+  }
+  #nameIn:focus{outline:3px solid var(--ghost);outline-offset:2px;}
+  #nameRow .btn{width:auto;flex:none;padding:14px 18px;}
+
+  #board{
+    width:100%;max-width:360px;max-height:46vh;overflow:auto;
+    border:2px solid var(--ink);background:#fff;
+    -webkit-overflow-scrolling:touch;
+  }
+  .row{
+    display:flex;align-items:baseline;gap:10px;
+    padding:10px 13px;border-bottom:1px solid var(--line);
+    font-size:15px;letter-spacing:-0.02em;
+  }
+  .row:last-child{border-bottom:0;}
+  .row.me{background:#E7ECF5;}
+  .row .no{width:26px;color:var(--ghost);font-variant-numeric:tabular-nums;font-size:13px;}
+  .row .nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .row .va{font-variant-numeric:tabular-nums;font-weight:700;}
+  .note{font-size:13px;color:#5c646d;text-align:center;letter-spacing:-0.02em;}
+  @media (prefers-reduced-motion:reduce){
+    #count,#acts,.btn{transition:none;}
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="room"></div>
+
+<div id="ui">
+  <div id="count">0</div>
+  <div id="acts">
+    <button class="btn" id="btnRank">랭킹 등록하기</button>
+    <button class="btn quiet" id="btnAgain">다시 도망치기</button>
+  </div>
+</div>
+
+<div id="panel">
+  <div class="box" id="nameRow">
+    <input id="nameIn" maxlength="8" autocomplete="off" spellcheck="false" aria-label="이름">
+    <button class="btn" id="btnSend">등록</button>
+  </div>
+  <div id="board"></div>
+  <div class="note" id="note"></div>
+  <div class="box"><button class="btn quiet" id="btnBack">다시 도망치기</button></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════
+   앱스스크립트 웹앱 주소(/exec)를 넣으면 랭킹이 살아납니다.
+   비워두면 랭킹 버튼이 안 나오고 바로 다시 시작만 됩니다.
+   ══════════════════════════════════════════════════ */
+var RANK_URL = 'https://script.google.com/macros/s/AKfycbzKmIYdOCYXNwXbNzvZWR2mQZk59Hhbpk7le-86VGqwzrgJZYqwGegYmRHcKhQ59fVV/exec';
+
+/* ══════════════════════════════════════════════════
+   조절용 숫자
+   ══════════════════════════════════════════════════ */
+var CFG = {
+  /* 분열 — 나만 갈라짐. 주기가 계속 짧아짐. 상한 없음 */
+  splitFirst: 2.0,
+  splitStart: 2.4,
+  splitMin: 0.45,
+  splitAccel: 0.026,
+
+  /* 분신이 물려받는 내 동선 */
+  pathSeconds: 2.6,
+  cloneSpeed: 46,
+  clonePause: 0.35,
+
+  /* 나 */
+  playerSpeed: 92,
+  playerHP: 3,
+  invuln: 1.3,
+  findGlow: 1.1,
+  hitDist: 15,
+
+  /* 마무리 */
+  wakeDelay: 1.1,      // 죽고 화면이 바뀌기까지
+  eyeShut: 2.2,        // 누운 채 눈 감고 있는 시간
+  eyeOpen: 0.7,        // 눈 뜨는 데 걸리는 시간
+  countDelay: 0.9,     // 눈 뜨고 숫자가 뜨기까지
+  actsDelay: 0.7       // 숫자 뜨고 버튼이 올라오기까지
+};
+
+/* 2D 인물 색 — 오락실 얼굴과 같은 색 */
+var SKIN  = "#EDBC97";
+var SHIRT = "#41506A";
+var PANTS = "#28303E";
+var HAIR  = "#1B2430";
+var OUTL  = "rgba(20,26,36,0.32)";
+
+/* ══════════════════════════════════════════════════ 판 */
+var cv = document.getElementById("stage");
+var ctx = cv.getContext("2d", { alpha:false });
+var roomEl = document.getElementById("room");
+var uiEl = document.getElementById("ui");
+var countEl = document.getElementById("count");
+var actsEl = document.getElementById("acts");
+var panelEl = document.getElementById("panel");
+var boardEl = document.getElementById("board");
+var noteEl = document.getElementById("note");
+var nameIn = document.getElementById("nameIn");
+
+var W=0,H=0,DPR=1;
+var COL = { paper:"#ECEEF1", floor:"#E3E6EA", line:"#CFD4DA", ghost:"#98A0A9", ink:"#1B2430" };
+
+var arena = {x:0,y:0,w:0,h:0};
+function layout(){
+  var pad = Math.max(14, Math.min(W,H)*0.04);
+  arena.x=pad; arena.y=pad; arena.w=W-pad*2; arena.h=H-pad*2;
+}
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  cv.style.width=W+"px"; cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  layout();
+  if (room.ready) room.resize();
+}
+window.addEventListener("resize", resize);
+
+var PHASE = { INTRO:"intro", RUN:"run", FADE:"fade", WAKE:"wake" };
+
+var phase, t, phaseT, player, clones, sparks;
+var trail, trailTimer, splitTimer, shake, score;
+var TRAIL_DT = 0.05;
+
+function reset(){
+  layout();
+  phase=PHASE.INTRO; t=0; phaseT=0; shake=0;
+  clones=[]; sparks=[]; trail=[]; trailTimer=0;
+  splitTimer=CFG.splitFirst; score=0;
+  player={ x:arena.x+arena.w/2, y:arena.y+arena.h/2,
+           hp:CFG.playerHP, inv:0, face:1, step:0, glow:0 };
+  cv.style.display="block";
+  roomEl.style.display="none";
+  uiEl.classList.remove("on");
+  panelEl.classList.remove("on");
+  countEl.classList.remove("on");
+  actsEl.classList.remove("on");
+  room.stop();
+}
+
+/* ══════════════════════════════════════════════════ 입력 */
+var keys=new Set();
+var stick=null, anyInput=false;
+var STICK_MAX=52, STICK_DEAD=8;
+
+window.addEventListener("keydown", function(e){
+  if(e.key===" "||e.key.indexOf("Arrow")===0) e.preventDefault();
+  keys.add(e.key); anyInput=true;
+});
+window.addEventListener("keyup", function(e){ keys["delete"](e.key); });
+window.addEventListener("blur", function(){ keys.clear(); stick=null; });
+
+cv.addEventListener("pointerdown", function(e){
+  cv.setPointerCapture(e.pointerId);
+  stick={id:e.pointerId, ox:e.clientX, oy:e.clientY, dx:0, dy:0};
+  anyInput=true;
+});
+cv.addEventListener("pointermove", function(e){
+  if(!stick||e.pointerId!==stick.id) return;
+  var dx=e.clientX-stick.ox, dy=e.clientY-stick.oy;
+  var len=Math.hypot(dx,dy);
+  if(len<STICK_DEAD){ stick.dx=0; stick.dy=0; return; }
+  if(len>STICK_MAX){
+    stick.ox=e.clientX-dx/len*STICK_MAX;
+    stick.oy=e.clientY-dy/len*STICK_MAX;
+    dx=e.clientX-stick.ox; dy=e.clientY-stick.oy;
+    len=Math.hypot(dx,dy);
+  }
+  stick.dx=dx/STICK_MAX; stick.dy=dy/STICK_MAX;
+});
+function endStick(e){
+  if(stick && e && e.pointerId!==stick.id) return;
+  stick=null;
+  try{ if(e&&cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId); }catch(_){}
+}
+cv.addEventListener("pointerup", endStick);
+cv.addEventListener("pointercancel", endStick);
+
+function readMove(){
+  var mx=0,my=0;
+  if(keys.has("ArrowLeft") ||keys.has("a")||keys.has("A")) mx-=1;
+  if(keys.has("ArrowRight")||keys.has("d")||keys.has("D")) mx+=1;
+  if(keys.has("ArrowUp")   ||keys.has("w")||keys.has("W")) my-=1;
+  if(keys.has("ArrowDown") ||keys.has("s")||keys.has("S")) my+=1;
+  var l=Math.hypot(mx,my); if(l>0){ mx/=l; my/=l; }
+  if(stick){ mx+=stick.dx; my+=stick.dy; }
+  var l2=Math.hypot(mx,my); if(l2>1){ mx/=l2; my/=l2; }
+  return {mx:mx,my:my};
+}
+
+/* ══════════════════════════════════════════════════ 분신 */
+function doSplit(){
+  var n=Math.max(2, Math.round(CFG.pathSeconds/TRAIL_DT));
+  var path=trail.slice(-n).map(function(p){ return {x:p.x,y:p.y}; });
+  var span=0;
+  for(var i=1;i<path.length;i++) span+=Math.hypot(path[i].x-path[i-1].x, path[i].y-path[i-1].y);
+  if(path.length<2||span<24) path=[{x:player.x,y:player.y}];
+
+  var a=Math.random()*Math.PI*2;
+  clones.push({
+    x:player.x+Math.cos(a)*3, y:player.y+Math.sin(a)*3,
+    vx:Math.cos(a)*80, vy:Math.sin(a)*80,
+    birth:0.45, path:path, i:path.length-1, dir:-1, wait:0,
+    face:player.face, step:Math.random()*6
+  });
+  sparks.push({x:player.x,y:player.y,life:0.45,max:0.45,r:24});
+  player.glow=CFG.findGlow;
+  shake=Math.min(shake+2, 6.5);
+  score++;
+}
+
+function clampArena(e,r){
+  if(e.x<arena.x+r) e.x=arena.x+r;
+  if(e.x>arena.x+arena.w-r) e.x=arena.x+arena.w-r;
+  if(e.y<arena.y+r) e.y=arena.y+r;
+  if(e.y>arena.y+arena.h-r) e.y=arena.y+arena.h-r;
+}
+
+var CELL=34, grid=new Map();
+function rebuildGrid(){
+  grid.clear();
+  for(var i=0;i<clones.length;i++){
+    var c=clones[i];
+    var k=((c.x/CELL)|0)+","+((c.y/CELL)|0);
+    var b=grid.get(k); if(!b){b=[];grid.set(k,b);}
+    b.push(c);
+  }
+}
+function nearby(x,y,span){
+  var cx=(x/CELL)|0, cy=(y/CELL)|0, out=[];
+  for(var gx=cx-span;gx<=cx+span;gx++)
+    for(var gy=cy-span;gy<=cy+span;gy++){
+      var b=grid.get(gx+","+gy);
+      if(b) for(var i=0;i<b.length;i++) out.push(b[i]);
+    }
+  return out;
+}
+
+/* ══════════════════════════════════════════════════ 갱신 */
+function update(dt){
+  phaseT+=dt;
+  if(shake>0) shake=Math.max(0,shake-dt*14);
+  for(var s=sparks.length-1;s>=0;s--){
+    sparks[s].life-=dt;
+    if(sparks[s].life<=0) sparks.splice(s,1);
+  }
+
+  if(phase===PHASE.INTRO){
+    if(anyInput&&phaseT>0.3){ phase=PHASE.RUN; phaseT=0; t=0; }
+    return;
+  }
+  if(phase===PHASE.WAKE) return;
+
+  if(phase===PHASE.FADE){
+    if(phaseT>=CFG.wakeDelay) enterWake();
+    return;
+  }
+
+  t+=dt;
+
+  var mv=readMove();
+  player.x+=mv.mx*CFG.playerSpeed*dt;
+  player.y+=mv.my*CFG.playerSpeed*dt;
+  if(mv.mx!==0) player.face=mv.mx>0?1:-1;
+  player.step+=Math.hypot(mv.mx,mv.my)*CFG.playerSpeed*dt*0.055;
+  clampArena(player,10);
+  if(player.inv>0) player.inv-=dt;
+  if(player.glow>0) player.glow-=dt;
+
+  trailTimer-=dt;
+  if(trailTimer<=0){
+    trailTimer=TRAIL_DT;
+    trail.push({x:player.x,y:player.y});
+    var cap=Math.round((CFG.pathSeconds+2)/TRAIL_DT);
+    if(trail.length>cap) trail.splice(0, trail.length-cap);
+  }
+
+  splitTimer-=dt;
+  if(splitTimer<=0){
+    doSplit();
+    splitTimer=Math.max(CFG.splitMin, CFG.splitStart-t*CFG.splitAccel);
+  }
+
+  for(var i=0;i<clones.length;i++){
+    var c=clones[i];
+    if(c.birth>0){
+      c.birth-=dt;
+      c.x+=c.vx*dt; c.y+=c.vy*dt;
+      c.vx*=0.87; c.vy*=0.87;
+      clampArena(c,9);
+      continue;
+    }
+    if(c.path.length<2){ c.step=0; continue; }
+    if(c.wait>0){ c.wait-=dt; c.step=0; continue; }
+
+    var tg=c.path[c.i];
+    var dx=tg.x-c.x, dy=tg.y-c.y;
+    var d=Math.hypot(dx,dy);
+    var stepLen=CFG.cloneSpeed*dt;
+    if(d<=stepLen+0.5){
+      c.x=tg.x; c.y=tg.y;
+      c.i+=c.dir;
+      if(c.i<0){ c.i=0; c.dir=1; c.wait=CFG.clonePause; }
+      else if(c.i>=c.path.length){ c.i=c.path.length-1; c.dir=-1; c.wait=CFG.clonePause; }
+    } else {
+      c.x+=dx/d*stepLen; c.y+=dy/d*stepLen;
+      if(Math.abs(dx)>0.4) c.face=dx>0?1:-1;
+      c.step+=stepLen*0.055;
+    }
+    clampArena(c,9);
+  }
+
+  rebuildGrid();
+  var R=15;
+  for(var j=0;j<clones.length;j++){
+    var q=clones[j];
+    if(q.birth>0) continue;
+    var ax=0,ay=0,n=0;
+    var near=nearby(q.x,q.y,1);
+    for(var k=0;k<near.length;k++){
+      var o=near[k];
+      if(o===q) continue;
+      var ox=q.x-o.x, oy=q.y-o.y, d2=ox*ox+oy*oy;
+      if(d2>0.01&&d2<R*R){
+        var dd=Math.sqrt(d2);
+        ax+=ox/dd*(1-dd/R); ay+=oy/dd*(1-dd/R);
+        if(++n>5) break;
+      }
+    }
+    if(n){ q.x+=ax*30*dt; q.y+=ay*30*dt; clampArena(q,9); }
+  }
+
+  if(player.inv<=0){
+    var hitList=nearby(player.x,player.y,1);
+    for(var h=0;h<hitList.length;h++){
+      var e=hitList[h];
+      if(e.birth>0) continue;
+      if(Math.hypot(e.x-player.x, e.y-player.y)<CFG.hitDist){
+        player.hp--; player.inv=CFG.invuln; player.glow=CFG.findGlow;
+        shake=8;
+        if(player.hp<=0){ phase=PHASE.FADE; phaseT=0; shake=10; }
+        break;
+      }
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════ 2D 인물 */
+function figure(x,y,s,face,step,alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha===undefined?1:alpha;
+  ctx.translate(x,y);
+  ctx.scale(face<0?-s:s, s);
+  var sw=Math.sin(step)*1.7;
+  ctx.lineJoin="round";
+  ctx.strokeStyle=OUTL;
+  ctx.lineWidth=0.9;
+
+  ctx.fillStyle=PANTS;
+  ctx.beginPath();
+  ctx.moveTo(-2.6+sw*0.5,2); ctx.lineTo(-4.3+sw,11);
+  ctx.lineTo(-1.4+sw,11);    ctx.lineTo(-0.2,2); ctx.closePath();
+  ctx.moveTo(0.2,2);         ctx.lineTo(1.4-sw,11);
+  ctx.lineTo(4.3-sw,11);     ctx.lineTo(2.6-sw*0.5,2); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle=SHIRT;
+  ctx.beginPath();
+  ctx.moveTo(-4.4,-6.2); ctx.lineTo(4.4,-6.2);
+  ctx.lineTo(3.6,3);     ctx.lineTo(-3.6,3); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  ctx.beginPath();
+  ctx.ellipse(-5.3,-2.4+sw*0.4,1.5,4.4,0.12,0,Math.PI*2);
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(5.3,-2.4-sw*0.4,1.5,4.4,-0.12,0,Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle=SKIN;
+  ctx.beginPath();
+  ctx.arc(-5.5,2.0+sw*0.5,1.4,0,Math.PI*2);
+  ctx.arc(5.5,2.0-sw*0.5,1.4,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(0,-10.6,4.1,0,Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle=HAIR;
+  ctx.beginPath();
+  ctx.arc(0,-11.0,4.15,Math.PI*0.98,Math.PI*2.02);
+  ctx.lineTo(3.6,-10.2);
+  ctx.lineTo(-3.6,-10.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawField(){
+  ctx.fillStyle=COL.floor;
+  ctx.fillRect(arena.x,arena.y,arena.w,arena.h);
+  ctx.strokeStyle=COL.line; ctx.lineWidth=1;
+  ctx.strokeRect(arena.x+0.5,arena.y+0.5,arena.w-1,arena.h-1);
+
+  if(player.glow>0){
+    var k=player.glow/CFG.findGlow;
+    ctx.save();
+    ctx.globalAlpha=k*0.6;
+    ctx.strokeStyle=COL.ink; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.arc(player.x,player.y,16+(1-k)*26,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  var all=[];
+  for(var i=0;i<clones.length;i++) all.push({e:clones[i],me:false});
+  all.push({e:player,me:true});
+  all.sort(function(a,b){ return a.e.y-b.e.y; });
+
+  for(var j=0;j<all.length;j++){
+    var o=all[j], e=o.e;
+    if(o.me){
+      var blink=player.inv>0 && Math.floor(player.inv*13)%2===0;
+      if(!blink) figure(e.x,e.y,1.15,e.face,e.step,1);
+    } else {
+      var a=e.birth>0 ? 0.35+0.65*(1-e.birth/0.45) : 1;
+      figure(e.x,e.y,1.15,e.face,e.step,a);
+    }
+  }
+
+  for(var s=0;s<sparks.length;s++){
+    var sp=sparks[s], kk=1-sp.life/sp.max;
+    ctx.save();
+    ctx.globalAlpha=(1-kk)*0.45;
+    ctx.strokeStyle=COL.ink; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(sp.x,sp.y,5+kk*sp.r,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  for(var h=0;h<CFG.playerHP;h++){
+    ctx.beginPath();
+    ctx.arc(arena.x+11+h*15, arena.y-9, 4, 0, Math.PI*2);
+    if(h<player.hp){ ctx.fillStyle=COL.ink; ctx.fill(); }
+    else{ ctx.strokeStyle=COL.line; ctx.lineWidth=1.5; ctx.stroke(); }
+  }
+}
+
+function drawStick(){
+  if(!stick) return;
+  ctx.save();
+  ctx.globalAlpha=0.5;
+  ctx.strokeStyle=COL.ghost; ctx.lineWidth=1.6;
+  ctx.beginPath(); ctx.arc(stick.ox,stick.oy,STICK_MAX,0,Math.PI*2); ctx.stroke();
+  ctx.globalAlpha=0.28;
+  ctx.beginPath(); ctx.arc(stick.ox,stick.oy,7,0,Math.PI*2); ctx.stroke();
+  ctx.globalAlpha=0.72;
+  ctx.fillStyle=COL.ink;
+  ctx.beginPath();
+  ctx.arc(stick.ox+stick.dx*STICK_MAX, stick.oy+stick.dy*STICK_MAX, 15, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw(){
+  ctx.fillStyle=COL.paper;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+  drawField();
+  ctx.restore();
+
+  drawStick();
+
+  if(phase===PHASE.INTRO){
+    var p=0.5+0.5*Math.sin(phaseT*2.2);
+    ctx.save();
+    ctx.globalAlpha=0.2+0.28*p;
+    ctx.strokeStyle=COL.ghost; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(player.x,player.y,26+p*7,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  if(phase===PHASE.FADE){
+    ctx.save();
+    ctx.globalAlpha=Math.min(1, phaseT/CFG.wakeDelay);
+    ctx.fillStyle=COL.paper; ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+}
+
+/* ══════════════════════════════════════════════════ 3D — 누워서 눈 뜨기 */
+var room = (function(){
+  var ready=false, running=false;
+  var scene, camera, renderer, head, calmEyes=[], lids=[], mouth, brows=[];
+  var clock=0, blinkWait=3.4, blinking=0;
+  var openness=0;
+
+  function has3D(){
+    try{
+      var c=document.createElement('canvas');
+      return !!(window.WebGLRenderingContext && (c.getContext('webgl')||c.getContext('experimental-webgl')));
+    }catch(e){ return false; }
+  }
+
+  function build(){
+    if(!window.THREE || !has3D()) return false;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xECEEF1);
+
+    camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+
+    renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.02;
+    roomEl.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xf6f8f4, 0x9aa49e, 0.70));
+    var key = new THREE.DirectionalLight(0xfff4e6, 0.62);
+    key.position.set(1.8, 3.4, 3.6); scene.add(key);
+    var fill = new THREE.DirectionalLight(0xd9e4f2, 0.30);
+    fill.position.set(-3.2, 0.4, 1.6); scene.add(fill);
+    var rim = new THREE.DirectionalLight(0xb9cde8, 0.34);
+    rim.position.set(-1.0, 1.6, -4.0); scene.add(rim);
+
+    var SKINM  = new THREE.MeshStandardMaterial({ color:0xEDBC97, roughness:0.86 });
+    var INKM   = new THREE.MeshStandardMaterial({ color:0x1B2430, roughness:0.45 });
+    var HAIRM  = new THREE.MeshStandardMaterial({ color:0x1B2430, roughness:0.62 });
+    var PILLOW = new THREE.MeshStandardMaterial({ color:0xE9ECEF, roughness:0.95 });
+    var QUILT  = new THREE.MeshStandardMaterial({ color:0x41506A, roughness:0.9 });
+    var SHEET  = new THREE.MeshStandardMaterial({ color:0xDDE2E7, roughness:0.95 });
+
+    /* 침대 */
+    var bed = new THREE.Group();
+    bed.position.set(0,0,0);
+    scene.add(bed);
+
+    var mattress = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.7, 4.4), SHEET);
+    mattress.position.set(0, -1.62, -0.2);
+    bed.add(mattress);
+
+    var pillow = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.62, 2.5), PILLOW);
+    pillow.position.set(-0.15, -1.20, -0.1);
+    pillow.rotation.z = 0.04;
+    bed.add(pillow);
+
+    var quilt = new THREE.Mesh(new THREE.BoxGeometry(6.9, 0.85, 3.0), QUILT);
+    quilt.position.set(2.9, -1.15, -0.15);
+    bed.add(quilt);
+
+    var fold = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 3.0, 20, 1, false, 0, Math.PI), SHEET);
+    fold.rotation.z = Math.PI/2;
+    fold.rotation.y = Math.PI/2;
+    fold.position.set(0.62, -0.76, -0.15);
+    bed.add(fold);
+
+    /* 머리 — 오락실 얼굴 */
+    head = new THREE.Group();
+    head.position.set(-0.35, -0.42, 0.35);
+    head.rotation.z = -1.34;      // 옆으로 누움
+    head.rotation.y = 0.34;
+    head.rotation.x = 0.06;
+    scene.add(head);
+
+    var skull = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 40), SKINM);
+    skull.scale.set(1, 1.07, 0.97);
+    head.add(skull);
+
+    var jaw = new THREE.Mesh(new THREE.SphereGeometry(0.66, 34, 28), SKINM);
+    jaw.position.set(0, -0.56, 0.10);
+    jaw.scale.set(0.98, 0.86, 0.95);
+    head.add(jaw);
+
+    function strand(offset, dir, phiEnd){
+      var pts=[], steps=14;
+      for(var i=0;i<=steps;i++){
+        var phi = 0.16 + (phiEnd-0.16)*(i/steps);
+        var o = offset*(1+Math.sin(phi)*0.22);
+        var a = dir>0 ? o : (Math.PI-o);
+        var r = 1.045;
+        pts.push(new THREE.Vector3(
+          Math.sin(phi)*Math.sin(a)*r,
+          Math.cos(phi)*r*1.07,
+          Math.sin(phi)*Math.cos(a)*r*0.97
+        ));
+      }
+      head.add(new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 22, 0.055, 7, false),
+        HAIRM
+      ));
+    }
+    [-0.78,-0.27,0.27,0.78].forEach(function(o){
+      strand(o, 1, 1.06);
+      strand(o,-1, 1.74);
+    });
+
+    var crown = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 14), HAIRM);
+    crown.position.set(0, 1.055, -0.02);
+    crown.scale.set(1.0, 0.42, 1.0);
+    head.add(crown);
+
+    [-1,1].forEach(function(s){
+      var ear = new THREE.Mesh(new THREE.SphereGeometry(0.21, 20, 16), SKINM);
+      ear.position.set(0.97*s, -0.06, 0);
+      ear.scale.set(0.38, 1.05, 0.72);
+      head.add(ear);
+    });
+
+    var nose = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16), SKINM);
+    nose.position.set(0, -0.11, 0.93);
+    nose.scale.set(0.78, 0.92, 1.15);
+    head.add(nose);
+
+    [-1,1].forEach(function(s){
+      var eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 16), INKM);
+      eye.position.set(0.365*s, 0.10, 0.855);
+      eye.scale.set(0.95, 0.001, 0.55);
+      head.add(eye);
+      calmEyes.push(eye);
+
+      var lid = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.036, 9, 22, Math.PI), INKM);
+      lid.position.set(0.365*s, 0.09, 0.855);
+      lid.rotation.z = Math.PI;
+      lid.rotation.x = -0.14;
+      head.add(lid);
+      lids.push(lid);
+
+      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.052, 0.07), INKM);
+      brow.position.set(0.375*s, 0.395, 0.86);
+      brow.rotation.z = -0.08*s;
+      brow.rotation.x = -0.18;
+      head.add(brow);
+      brows.push(brow);
+    });
+
+    mouth = new THREE.Mesh(new THREE.SphereGeometry(0.10, 18, 14), INKM);
+    mouth.position.set(0, -0.38, 0.87);
+    mouth.scale.set(1.15, 0.9, 0.35);
+    head.add(mouth);
+
+    var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 0.9, 22), SKINM);
+    neck.position.set(0, -1.32, -0.02);
+    head.add(neck);
+
+    ready = true;
+    resizeR();
+    return true;
+  }
+
+  function resizeR(){
+    if(!ready) return;
+    var w = roomEl.clientWidth || window.innerWidth;
+    var h = roomEl.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w/h;
+    // 세로로 긴 화면일수록 뒤로 물러난다
+    var dist = 8.4 * Math.max(1, (h/w) * 0.62);
+    camera.position.set(0.15, 0.9, Math.min(14, Math.max(7.2, dist)));
+    camera.lookAt(-0.2, -0.55, 0);
+    camera.updateProjectionMatrix();
+  }
+
+  function start(){
+    if(!ready && !build()) return false;
+    running = true;
+    clock = 0; openness = 0; blinkWait = 3.4; blinking = 0;
+    roomEl.style.display = "block";
+    resizeR();
+    return true;
+  }
+  function stop(){ running=false; }
+
+  function tick(dt, elapsed){
+    if(!running||!ready) return;
+    clock += dt;
+
+    var op = 0;
+    if(elapsed > CFG.eyeShut){
+      op = Math.min(1, (elapsed-CFG.eyeShut)/CFG.eyeOpen);
+      op = op*op*(3-2*op);
+    }
+    openness = op;
+
+    var blinkK = 1;
+    if(op >= 1){
+      blinkWait -= dt;
+      if(blinkWait<=0 && blinking<=0){ blinking=0.14; blinkWait=2.8+Math.random()*4.0; }
+      if(blinking>0) blinking -= dt;
+      if(blinking>0) blinkK = 1 - Math.sin(Math.PI*(blinking/0.14))*0.92;
+    }
+
+    for(var i=0;i<calmEyes.length;i++){
+      calmEyes[i].scale.set(0.95, Math.max(0.001, 1.18*openness*blinkK), 0.55);
+      lids[i].visible = openness < 0.30;
+    }
+    for(var b=0;b<brows.length;b++){
+      brows[b].position.y = 0.395 + openness*0.045;
+    }
+    mouth.scale.set(1.15, 0.9 - openness*0.18, 0.35);
+
+    var breathe = Math.sin(clock*0.85)*0.022;
+    head.position.y = -0.42 + breathe;
+    head.rotation.z = -1.34 + Math.sin(clock*0.85)*0.010 + openness*0.045;
+
+    renderer.render(scene, camera);
+  }
+
+  return {
+    get ready(){ return ready; },
+    start:start, stop:stop, tick:tick, resize:resizeR
+  };
+})();
+
+/* ══════════════════════════════════════════════════ 마무리 화면 */
+var wakeT = 0, countShown = false, actsShown = false;
+
+function enterWake(){
+  phase = PHASE.WAKE;
+  phaseT = 0; wakeT = 0;
+  countShown = false; actsShown = false;
+  countEl.textContent = String(score);
+  cv.style.display = "none";
+  uiEl.classList.add("on");
+  if(!room.start()){
+    // WebGL 이 없으면 숫자와 버튼만 나옵니다
+    roomEl.style.display = "none";
+  }
+}
+
+function wakeTick(dt){
+  wakeT += dt;
+  room.tick(dt, wakeT);
+
+  var countAt = CFG.eyeShut + CFG.eyeOpen + CFG.countDelay;
+  if(!countShown && wakeT >= countAt){ countShown = true; countEl.classList.add("on"); }
+  if(!actsShown && wakeT >= countAt + CFG.actsDelay){ actsShown = true; actsEl.classList.add("on"); }
+}
+
+/* ══════════════════════════════════════════════════ 랭킹 */
+var MY_ID = (function(){
+  var k = "najasin_id", v = "";
+  try{
+    v = window.localStorage.getItem(k) || "";
+    if(!v){
+      v = Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+      v = v.replace(/[^A-Za-z0-9]/g,"").slice(0,16);
+      window.localStorage.setItem(k, v);
+    }
+  }catch(e){
+    v = Math.random().toString(36).slice(2,10);
+  }
+  return v;
+})();
+
+function savedName(){
+  try{ return window.localStorage.getItem("najasin_name") || ""; }catch(e){ return ""; }
+}
+function rememberName(n){
+  try{ window.localStorage.setItem("najasin_name", n); }catch(e){}
+}
+
+var jsonpSeq = 0;
+function jsonp(url, done){
+  var name = "najasinCb" + (++jsonpSeq);
+  var s = document.createElement("script");
+  var timer = setTimeout(function(){ cleanup(); done(null); }, 9000);
+  function cleanup(){
+    clearTimeout(timer);
+    try{ delete window[name]; }catch(e){ window[name] = undefined; }
+    if(s.parentNode) s.parentNode.removeChild(s);
+  }
+  window[name] = function(data){ cleanup(); done(data); };
+  s.onerror = function(){ cleanup(); done(null); };
+  s.src = url + (url.indexOf("?")>=0 ? "&" : "?") + "callback=" + name;
+  document.head.appendChild(s);
+}
+
+function loadBoard(highlightName){
+  if(!RANK_URL){ boardEl.innerHTML = ""; return; }
+  noteEl.textContent = "불러오는 중";
+  jsonp(RANK_URL + "?game=najasin", function(rows){
+    if(!rows || !rows.length){
+      boardEl.innerHTML = "";
+      noteEl.textContent = rows ? "" : "지금은 순위를 불러오지 못했습니다";
+      return;
+    }
+    noteEl.textContent = "";
+    var html = "";
+    for(var i=0;i<rows.length && i<50;i++){
+      var r = rows[i];
+      var me = highlightName && r.n === highlightName;
+      html += '<div class="row' + (me?" me":"") + '">' +
+                '<span class="no">' + (i+1) + '</span>' +
+                '<span class="nm"></span>' +
+                '<span class="va">' + (Number(r.d)||0) + '</span>' +
+              '</div>';
+    }
+    boardEl.innerHTML = html;
+    var names = boardEl.querySelectorAll(".nm");
+    for(var j=0;j<names.length;j++) names[j].textContent = String(rows[j].n);
+  });
+}
+
+function submitScore(name, done){
+  if(!RANK_URL){ done(false); return; }
+  var body = JSON.stringify({ game:"najasin", id:MY_ID, name:name, count:score });
+  fetch(RANK_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"text/plain;charset=utf-8" },
+    body: body
+  }).then(function(res){ return res.json(); })
+    .then(function(j){ done(!!(j && j.ok)); })
+    .catch(function(){ done(false); });
+}
+
+/* ══════════════════════════════════════════════════ 버튼 */
+var btnRank = document.getElementById("btnRank");
+var btnAgain = document.getElementById("btnAgain");
+var btnSend = document.getElementById("btnSend");
+var btnBack = document.getElementById("btnBack");
+
+if(!RANK_URL) btnRank.style.display = "none";
+
+btnRank.addEventListener("click", function(){
+  panelEl.classList.add("on");
+  nameIn.value = savedName();
+  noteEl.textContent = "";
+  loadBoard(null);
+  if(!nameIn.value) setTimeout(function(){ nameIn.focus(); }, 60);
+});
+
+function restart(){
+  anyInput = false;
+  keys.clear();
+  stick = null;
+  reset();
+  phase = PHASE.RUN;
+  phaseT = 0; t = 0;
+}
+btnAgain.addEventListener("click", restart);
+btnBack.addEventListener("click", restart);
+
+btnSend.addEventListener("click", function(){
+  var n = (nameIn.value||"").trim().slice(0,8);
+  if(!n){ nameIn.focus(); return; }
+  rememberName(n);
+  btnSend.disabled = true;
+  noteEl.textContent = "보내는 중";
+  submitScore(n, function(ok){
+    btnSend.disabled = false;
+    if(ok){ noteEl.textContent = ""; setTimeout(function(){ loadBoard(n); }, 400); }
+    else  { noteEl.textContent = "등록하지 못했습니다"; }
+  });
+});
+nameIn.addEventListener("keydown", function(e){
+  if(e.key === "Enter") btnSend.click();
+});
+
+/* ══════════════════════════════════════════════════ 루프 */
+var last = 0;
+function loop(now){
+  if(!last) last = now;
+  var dt = (now-last)/1000; last = now;
+  if(dt > 0.05) dt = 0.05;
+
+  if(phase === PHASE.WAKE){
+    update(dt);
+    wakeTick(dt);
+  } else {
+    update(dt);
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+resize();
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
