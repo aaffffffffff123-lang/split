@@ -13,11 +13,17 @@
     --line:#CFD4DA;
     --ghost:#98A0A9;
     --ink:#1B2430;
+    /* 타원 바깥 — 어둠 */
+    --night:#05070B;
+    --night2:#151C27;
+    --lit:#E6ECF4;
+    --lit2:#8E9BAC;
+    --litLine:#394454;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{
     margin:0;padding:0;width:100%;height:100%;overflow:hidden;
-    background:var(--paper);color:var(--ink);
+    background:var(--night);color:var(--ink);
     font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
   }
   #stage{position:fixed;inset:0;display:block;touch-action:none;}
@@ -50,7 +56,7 @@
   #title{
     font-family:'Galmuri11','Galmuri14',monospace;
     font-size:36px;line-height:1.25;letter-spacing:0;
-    color:var(--ink);text-align:center;
+    color:var(--lit);text-align:center;
     padding:0 44px;
   }
   @media (min-width:560px) and (min-height:560px){
@@ -107,17 +113,31 @@
     flex-direction:column;align-items:center;justify-content:flex-start;
     gap:12px;
     padding:calc(58px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom));
-    background:rgba(236,238,241,.97);
+    background:rgba(5,7,11,.975);
   }
   #panel.on{display:flex;}
+  /* 어두운 화면 위에 놓이는 버튼 — 끝난 뒤 밝은 방에 뜨는 #ui와 색이 반대 */
+  #intro .btn,#panel .btn{
+    background:var(--lit);color:#141A22;
+    border-color:var(--lit);box-shadow:4px 4px 0 var(--night2);
+  }
+  #intro .btn:active,#panel .btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--night2);}
+  #intro .btn:focus-visible,#panel .btn:focus-visible{outline:3px solid var(--lit2);}
+  #intro .btn.quiet,#panel .btn.quiet{
+    background:transparent;color:var(--lit2);
+    border-color:var(--litLine);box-shadow:none;
+  }
+  #intro .btn.quiet:active,#panel .btn.quiet:active{transform:none;}
+
   #panel .box{width:100%;max-width:360px;}
   #nameRow{display:flex;gap:8px;}
   #nameIn{
     flex:1;min-width:0;padding:14px 12px;
     font:inherit;font-size:16px;font-weight:600;letter-spacing:-0.03em;
-    border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:0;
+    border:2px solid var(--litLine);background:#151B25;color:var(--lit);border-radius:0;
   }
-  #nameIn:focus{outline:3px solid var(--ghost);outline-offset:2px;}
+  #nameIn::placeholder{color:#5C6878;}
+  #nameIn:focus{outline:3px solid var(--lit2);outline-offset:2px;}
   #nameRow .btn{width:auto;flex:none;padding:14px 18px;}
 
   #btnClose{
@@ -126,9 +146,9 @@
     right:calc(10px + env(safe-area-inset-right));
     width:40px;height:40px;padding:0;display:none;
     align-items:center;justify-content:center;
-    background:none;border:0;color:#5c646d;cursor:pointer;
+    background:none;border:0;color:var(--lit2);cursor:pointer;
   }
-  #btnClose:focus-visible{outline:2px solid var(--ghost);outline-offset:2px;}
+  #btnClose:focus-visible{outline:2px solid var(--lit2);outline-offset:2px;}
 
   #panel.viewonly #nameRow{display:none;}
   #panel.viewonly #backBox{display:none;}
@@ -136,20 +156,20 @@
 
   #board{
     width:100%;max-width:360px;flex:1;min-height:0;overflow:auto;
-    border:2px solid var(--ink);background:#fff;
+    border:2px solid var(--litLine);background:#12171F;
     -webkit-overflow-scrolling:touch;
   }
   .row{
     display:flex;align-items:baseline;gap:10px;
-    padding:10px 13px;border-bottom:1px solid var(--line);
-    font-size:15px;letter-spacing:-0.02em;
+    padding:10px 13px;border-bottom:1px solid #232C38;
+    font-size:15px;letter-spacing:-0.02em;color:var(--lit);
   }
   .row:last-child{border-bottom:0;}
-  .row.me{background:#E7ECF5;}
-  .row .no{width:26px;color:var(--ghost);font-variant-numeric:tabular-nums;font-size:13px;}
+  .row.me{background:#1E2B3C;}
+  .row .no{width:26px;color:#6E7B8C;font-variant-numeric:tabular-nums;font-size:13px;}
   .row .nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .row .va{font-variant-numeric:tabular-nums;font-weight:700;}
-  .note{font-size:13px;color:#5c646d;text-align:center;letter-spacing:-0.02em;min-height:18px;}
+  .note{font-size:13px;color:var(--lit2);text-align:center;letter-spacing:-0.02em;min-height:18px;}
   @media (prefers-reduced-motion:reduce){
     #count,#acts,.btn{transition:none;}
   }
@@ -286,13 +306,10 @@ var CFG = {
   brainLine:    "#B4736F",  // 주름
   brainFissure: "#8E5150",  // 정중앙 틈
 
-  /* 타원 바깥 — 여기서 일어나는 일은 안으로 넘어오지 않습니다 */
-  people: 6,
-  peopleSpeed: [20, 31],
-  meetEvery: [7, 13],   // 둘이 멈춰 서기까지 걸리는 시간
-  meetHold: [2.2, 3.6], // 마주 보고 있는 시간
-  flies: 4,
-  flySpeed: [16, 26],
+  /* 타원 바깥 — 아무것도 없는 어둠. 경계는 흐리지 않고 딱 끊깁니다 */
+
+  /* 처음 들어왔을 때 조작을 알려주는 표시 — 한 번 움직이면 사라집니다 */
+  hintFade: 0.45,
 
   /* 마무리 */
   wakeDelay: 0.75,
@@ -323,15 +340,6 @@ var OUTL  = "rgba(20,26,36,0.32)";
 
 var ME_PAL = { skin:SKIN, shirt:SHIRT, pants:PANTS, hair:HAIR };
 
-/* 바깥 사람들 — 안쪽은 전부 같은 한 벌, 바깥은 제각각 */
-var OUT_SHIRT = ["#C8563C","#3F7A63","#B5843A","#5A6FA8","#8E5A86",
-                 "#4E8CA8","#A85F58","#6F8B3F","#C77E4E","#4B6D8E"];
-var OUT_PANTS = ["#3B3F4A","#2E3440","#3A3630","#2B3244","#33303C",
-                 "#2C3A44","#37323A","#333A2E","#3C3730","#2F3742"];
-var OUT_HAIR  = ["#1B2430","#3A2A22","#4A3B2A","#241E1B"];
-var OUT_SKIN  = ["#EDBC97","#D8A57E","#F2CBAA","#C89070"];
-var FLY_COL   = ["#E8B23A","#DE7B4B","#7FA6D8","#D8618A","#F0E3C2"];
-
 /* ══════════════════════════════════════════════════ 판 */
 var cv = document.getElementById("stage");
 var ctx = cv.getContext("2d", { alpha:false });
@@ -347,7 +355,9 @@ var nameIn = document.getElementById("nameIn");
 var muteEl = document.getElementById("btnMute");
 
 var W=0,H=0,DPR=1;
-var COL = { paper:"#ECEEF1", floor:"#E3E6EA", line:"#CFD4DA", ghost:"#98A0A9", ink:"#1B2430" };
+var COL = { paper:"#ECEEF1", floor:"#E3E6EA", line:"#CFD4DA", ghost:"#98A0A9", ink:"#1B2430",
+            night:"#05070B", night2:"#151C27",
+            lit:"#E6ECF4", lit2:"#8E9BAC", litLine:"#394454" };
 
 var REDUCE = false;
 try{ REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
@@ -393,7 +403,6 @@ function layout(){
   view.s = Math.min(availW/arena.w, availH/arena.h);
   view.ox = (W - arena.w*view.s) / 2;
   view.oy = (H - arena.h*view.s) / 2 + 10;
-  outsideBounds();
 }
 function resize(){
   DPR = Math.min(window.devicePixelRatio||1, 2);
@@ -683,7 +692,7 @@ function buildSprites(){
   SPR.cv = c; SPR.ready = true;
 }
 
-/* pal을 넘기면 그 자리에서 그립니다(바깥 사람들). 없으면 캐시를 씁니다. */
+/* pal을 넘기면 그 자리에서 그립니다. 없으면 캐시를 씁니다. */
 function figure(x,y,face,step,alpha,pal){
   if(alpha<=0.004) return;
   if(!pal && SPR.ready){
@@ -706,268 +715,6 @@ function figure(x,y,face,step,alpha,pal){
   ctx.restore();
 }
 
-/* ══════════════════════════════════════════════════ 타원 바깥
-   여기서 일어나는 일은 안으로 넘어오지 않고, 안의 일도 밖으로
-   나가지 않습니다. 겹치면 타원에 가려집니다. */
-var out = { b:{x0:0,y0:0,x1:0,y1:0}, bands:[], map:{}, people:[], flies:[], meetT:5 };
-
-function outsideBounds(){
-  out.b.x0 = (0 - view.ox)/view.s;
-  out.b.x1 = (W - view.ox)/view.s;
-  out.b.y0 = (0 - view.oy)/view.s;
-  out.b.y1 = (H - view.oy)/view.s;
-  buildBands();
-}
-function buildBands(){
-  var b = out.b, ov = 10, min = 30;
-  var all = [
-    { id:"top",    x0:b.x0, x1:b.x1, y0:b.y0, y1:(arena.cy-arena.ry)+ov, axis:"h" },
-    { id:"bottom", x0:b.x0, x1:b.x1, y0:(arena.cy+arena.ry)-ov, y1:b.y1, axis:"h" },
-    { id:"left",   y0:b.y0, y1:b.y1, x0:b.x0, x1:(arena.cx-arena.rx)+ov, axis:"v" },
-    { id:"right",  y0:b.y0, y1:b.y1, x0:(arena.cx+arena.rx)-ov, x1:b.x1, axis:"v" }
-  ];
-  var keep = [], map = {};
-  for(var i=0;i<all.length;i++){
-    var r = all[i];
-    var thick = r.axis==="h" ? (r.y1-r.y0) : (r.x1-r.x0);
-    if(thick >= min){ r.thick = thick; keep.push(r); map[r.id] = r; }
-  }
-  out.bands = keep;
-  out.map = map;
-}
-function bandOf(id){ return (id && out.map[id]) ? out.map[id] : null; }
-function pickBand(){
-  if(!out.bands.length) return null;
-  var tot=0, i;
-  for(i=0;i<out.bands.length;i++) tot += out.bands[i].thick;
-  var r = Math.random()*tot;
-  for(i=0;i<out.bands.length;i++){
-    r -= out.bands[i].thick;
-    if(r<=0) return out.bands[i];
-  }
-  return out.bands[out.bands.length-1];
-}
-function bandPoint(band, p){
-  if(band.axis==="h"){
-    p.y = rnd(band.y0+13, band.y1-13);
-  } else {
-    p.x = rnd(band.x0+13, band.x1-13);
-  }
-}
-
-function newPerson(fresh){
-  var band = pickBand();
-  var p = {
-    bandId: band ? band.id : null,
-    state:"walk", step:Math.random()*6, face:1, mate:null,
-    timer:0, tx:0, ty:0,
-    shirt:pick(OUT_SHIRT), pants:pick(OUT_PANTS),
-    hair:pick(OUT_HAIR), skin:pick(OUT_SKIN),
-    sp: rnd(CFG.peopleSpeed[0], CFG.peopleSpeed[1]),
-    vx:0, vy:0, x:0, y:0
-  };
-  p.pal = { shirt:p.shirt, pants:p.pants, hair:p.hair, skin:p.skin };
-  if(!band){ p.x = -9999; p.y = -9999; return p; }
-  var dir = Math.random()<0.5 ? -1 : 1;
-  if(band.axis==="h"){
-    p.vx = p.sp*dir; p.vy = 0;
-    p.x = fresh ? rnd(band.x0, band.x1) : (dir>0 ? band.x0-20 : band.x1+20);
-    bandPoint(band, p);
-  } else {
-    p.vy = p.sp*dir; p.vx = 0;
-    p.y = fresh ? rnd(band.y0, band.y1) : (dir>0 ? band.y0-20 : band.y1+20);
-    bandPoint(band, p);
-  }
-  p.face = p.vx>=0 ? 1 : -1;
-  return p;
-}
-function newFly(fresh){
-  var band = pickBand();
-  var f = {
-    bandId: band ? band.id : null, col:pick(FLY_COL), flap:Math.random()*6,
-    sp: rnd(CFG.flySpeed[0], CFG.flySpeed[1]),
-    turn: 0, x:0, y:0, vx:0, vy:0
-  };
-  if(!band){ f.x=-9999; f.y=-9999; return f; }
-  f.x = rnd(band.x0+8, band.x1-8);
-  f.y = rnd(band.y0+8, band.y1-8);
-  if(!fresh){
-    if(band.axis==="h") f.x = Math.random()<0.5 ? band.x0-14 : band.x1+14;
-    else                f.y = Math.random()<0.5 ? band.y0-14 : band.y1+14;
-  }
-  var a = Math.random()*Math.PI*2;
-  f.vx = Math.cos(a)*f.sp; f.vy = Math.sin(a)*f.sp;
-  return f;
-}
-function outsideFill(){
-  out.people = [];
-  out.flies = [];
-  if(!out.bands.length) return;
-  for(var i=0;i<CFG.people;i++) out.people.push(newPerson(true));
-  for(var j=0;j<CFG.flies;j++) out.flies.push(newFly(true));
-  out.meetT = rnd(2.5, 5);
-}
-
-function offBand(p, pad){
-  var b = bandOf(p.bandId);
-  if(!b) return true;
-  if(b.axis==="h") return p.x < b.x0-pad || p.x > b.x1+pad;
-  return p.y < b.y0-pad || p.y > b.y1+pad;
-}
-
-function startMeet(){
-  var pool = [];
-  for(var i=0;i<out.people.length;i++){
-    var p = out.people[i];
-    if(p.state==="walk" && bandOf(p.bandId) && !offBand(p, 0)) pool.push(p);
-  }
-  if(pool.length<2) return;
-  // 같은 띠에 있는 둘을 찾습니다
-  for(var a=0;a<pool.length;a++){
-    for(var b=a+1;b<pool.length;b++){
-      if(pool[a].bandId !== pool[b].bandId) continue;
-      var band = bandOf(pool[a].bandId), p1=pool[a], p2=pool[b];
-      var mx, my;
-      if(band.axis==="h"){
-        mx = rnd(band.x0 + (band.x1-band.x0)*0.25, band.x0 + (band.x1-band.x0)*0.75);
-        my = (p1.y + p2.y)/2;
-        p1.tx = mx - 9; p1.ty = my;
-        p2.tx = mx + 9; p2.ty = my;
-      } else {
-        my = rnd(band.y0 + (band.y1-band.y0)*0.25, band.y0 + (band.y1-band.y0)*0.75);
-        mx = (p1.x + p2.x)/2;
-        p1.tx = mx - 9; p1.ty = my;
-        p2.tx = mx + 9; p2.ty = my;
-      }
-      p1.state = "toMeet"; p2.state = "toMeet";
-      p1.mate = p2; p2.mate = p1;
-      return;
-    }
-  }
-}
-
-function stepPerson(p, dt){
-  var band = bandOf(p.bandId);
-  if(!band){
-    var rp = newPerson(false);
-    for(var rk in rp) if(Object.prototype.hasOwnProperty.call(rp,rk)) p[rk] = rp[rk];
-    return;
-  }
-  if(p.state === "walk" || p.state === "leave"){
-    p.x += p.vx*dt; p.y += p.vy*dt;
-    p.step += Math.hypot(p.vx,p.vy)*dt*0.055;
-    if(p.vx !== 0) p.face = p.vx>0 ? 1 : -1;
-    if(offBand(p, 26)){
-      var np = newPerson(false);
-      for(var k in np) if(Object.prototype.hasOwnProperty.call(np,k)) p[k] = np[k];
-    }
-    return;
-  }
-  if(p.state === "toMeet"){
-    var dx = p.tx-p.x, dy = p.ty-p.y, d = Math.hypot(dx,dy);
-    if(d < 1.5){
-      p.x = p.tx; p.y = p.ty;
-      p.state = "meet";
-      p.timer = rnd(CFG.meetHold[0], CFG.meetHold[1]);
-      if(p.mate) p.face = p.mate.x > p.x ? 1 : -1;
-      return;
-    }
-    var s = p.sp*dt;
-    p.x += dx/d*s; p.y += dy/d*s;
-    p.step += s*0.055;
-    if(Math.abs(dx) > 0.4) p.face = dx>0 ? 1 : -1;
-    return;
-  }
-  if(p.state === "meet"){
-    p.step = 0;
-    if(p.mate) p.face = p.mate.x > p.x ? 1 : -1;
-    p.timer -= dt;
-    if(p.timer <= 0){
-      var away = (p.mate && p.mate.x > p.x) ? -1 : 1;
-      if(band.axis==="h"){ p.vx = p.sp*away; p.vy = 0; }
-      else { p.vy = p.sp*(Math.random()<0.5?-1:1); p.vx = 0; }
-      p.state = "leave";
-      p.mate = null;
-    }
-  }
-}
-
-function stepFly(f, dt){
-  var b = bandOf(f.bandId);
-  if(!b){
-    var rf = newFly(false);
-    for(var rk in rf) if(Object.prototype.hasOwnProperty.call(rf,rk)) f[rk] = rf[rk];
-    return;
-  }
-  f.flap += dt*17;
-  f.turn -= dt;
-  if(f.turn <= 0){
-    f.turn = rnd(0.25, 0.7);
-    var a = Math.atan2(f.vy, f.vx) + rnd(-1.0, 1.0);
-    f.vx = Math.cos(a)*f.sp; f.vy = Math.sin(a)*f.sp;
-  }
-  // 띠 안쪽으로 붙잡아 둡니다 — 타원 위로는 넘어가지 않습니다
-  if(f.x < b.x0+7) f.vx += 90*dt;
-  if(f.x > b.x1-7) f.vx -= 90*dt;
-  if(f.y < b.y0+7) f.vy += 90*dt;
-  if(f.y > b.y1-7) f.vy -= 90*dt;
-  var l = Math.hypot(f.vx,f.vy);
-  if(l > f.sp){ f.vx = f.vx/l*f.sp; f.vy = f.vy/l*f.sp; }
-  f.x += f.vx*dt; f.y += f.vy*dt;
-  f.x = Math.max(b.x0+2, Math.min(b.x1-2, f.x));
-  f.y = Math.max(b.y0+2, Math.min(b.y1-2, f.y));
-}
-
-function updateOutside(dt){
-  var i;
-  for(i=0;i<out.people.length;i++) stepPerson(out.people[i], dt);
-  for(i=0;i<out.flies.length;i++) stepFly(out.flies[i], dt);
-  out.meetT -= dt;
-  if(out.meetT <= 0){
-    out.meetT = rnd(CFG.meetEvery[0], CFG.meetEvery[1]);
-    startMeet();
-  }
-}
-
-function drawFly(f){
-  var w = 1 + Math.abs(Math.sin(f.flap))*2.4;
-  var a = Math.atan2(f.vy, f.vx);
-  ctx.save();
-  ctx.translate(f.x, f.y);
-  ctx.rotate(a);
-  ctx.fillStyle = f.col;
-  ctx.beginPath();
-  ctx.ellipse(0.2, -1.5, 2.1, w*0.7, -0.3, 0, Math.PI*2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(0.2, 1.5, 2.1, w*0.7, 0.3, 0, Math.PI*2);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(20,26,36,0.55)";
-  ctx.lineWidth = 0.7;
-  ctx.beginPath();
-  ctx.moveTo(-1.6, 0); ctx.lineTo(1.9, 0);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawOutside(alpha){
-  if(alpha <= 0.004) return;
-  var i;
-  for(i=0;i<out.people.length;i++){
-    var p = out.people[i];
-    if(p.x < -9000) continue;
-    figure(p.x, p.y, p.face, p.step, alpha, p.pal);
-  }
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  for(i=0;i<out.flies.length;i++){
-    var f = out.flies[i];
-    if(f.x < -9000) continue;
-    drawFly(f);
-  }
-  ctx.restore();
-}
-
 /* ══════════════════════════════════════════════════ 시작 상태 */
 function reset(){
   layout();
@@ -978,7 +725,7 @@ function reset(){
   splitTimer=CFG.splitFirst; score=0;
   player={ x:arena.cx, y:arena.cy,
            hp:CFG.playerHP, inv:0, face:1, step:0, glow:0, kx:0, ky:0 };
-  if(!out.people.length) outsideFill();
+  document.body.style.background = "var(--night)";
   cv.style.display="block";
   roomEl.style.display="none";
   introEl.classList.add("on");
@@ -1000,6 +747,11 @@ function startRun(){
 var keys=new Set();
 var stick=null;
 var STICK_MAX=52, STICK_DEAD=8;
+
+/* 처음 들어왔을 때만 조작 표시를 띄웁니다. 한 번 움직이면 끝 */
+var moved=false, hint=1, hintT=0;
+var FINE = false;
+try{ FINE = window.matchMedia("(hover:hover) and (pointer:fine)").matches; }catch(e){}
 
 /* 한글 입력 상태에서도 WASD가 먹게 e.code를 같이 봅니다 */
 var CODE_MAP = {
@@ -1141,6 +893,7 @@ function nearby(x,y,span){
 
 function movePlayer(dt){
   var mv=readMove();
+  if(!moved && (mv.mx!==0 || mv.my!==0)) moved=true;
   player.x+=mv.mx*CFG.playerSpeed*dt + player.kx*dt;
   player.y+=mv.my*CFG.playerSpeed*dt + player.ky*dt;
   var decay=Math.exp(-6*dt);
@@ -1174,8 +927,9 @@ function update(dt){
   }
 
   if(phase===PHASE.INTRO){
-    updateOutside(dt);
     movePlayer(dt);
+    if(hint>0) hintT+=dt;
+    if(moved && hint>0) hint=Math.max(0, hint-dt/CFG.hintFade);
     return;
   }
   if(phase===PHASE.WAKE) return;
@@ -1190,7 +944,6 @@ function update(dt){
   }
 
   t+=dt;
-  updateOutside(dt);
 
   var wasInv = player.inv > 0;
   if(player.inv>0) player.inv-=dt;
@@ -1388,9 +1141,6 @@ function drawField(){
   var zoom = 1 + CFG.brainZoom*mk;
   var ck = lineA;   // 색이 물드는 정도 — 주름과 같이 갑니다
 
-  /* 바깥은 타원보다 먼저 그립니다. 겹치면 타원에 덮여 사라집니다. */
-  drawOutside(figA);
-
   shapePath(mk, zoom);
   if(ck>0.01){
     var gr=ctx.createRadialGradient(
@@ -1404,9 +1154,9 @@ function drawField(){
   }
   ctx.fill();
 
-  ctx.strokeStyle = mk>0 ? mix(MIXC.ink, MIXC.edge, ck) : COL.line;
-  ctx.globalAlpha = mk>0 ? (0.25+0.75*mk) : 1;
-  ctx.lineWidth = (1 + 0.8*mk)/view.s;
+  ctx.strokeStyle = mk>0 ? mix(MIXC.ink, MIXC.edge, ck) : COL.ghost;
+  ctx.globalAlpha = mk>0 ? (0.45+0.55*mk) : 0.9;
+  ctx.lineWidth = (1.4 + 0.8*mk)/view.s;
   ctx.stroke();
   ctx.globalAlpha = 1;
 
@@ -1465,7 +1215,7 @@ function drawField(){
     }
   }
 
-  if(phase===PHASE.INTRO){
+  if(phase===PHASE.INTRO && hint<=0){
     var p=0.5+0.5*Math.sin(phaseT*2.2);
     ctx.save();
     ctx.globalAlpha=0.2+0.28*p;
@@ -1482,33 +1232,123 @@ function drawField(){
     for(var h=0;h<total;h++){
       ctx.beginPath();
       ctx.arc(startX+h*gap, arena.y-11, 4, 0, Math.PI*2);
-      if(h<player.hp){ ctx.fillStyle=COL.ink; ctx.fill(); }
-      else{ ctx.strokeStyle=COL.line; ctx.lineWidth=1.5; ctx.stroke(); }
+      if(h<player.hp){ ctx.fillStyle=COL.lit; ctx.fill(); }
+      else{ ctx.strokeStyle=COL.litLine; ctx.lineWidth=1.5; ctx.stroke(); }
     }
     ctx.restore();
   }
 }
 
-function drawStick(){
-  if(!stick) return;
+/* 처음 들어왔을 때만 나오는 조작 표시.
+   터치면 손가락을 밀라는 뜻의 고리, 키보드면 방향키. 한 번 움직이면 사라집니다.
+   밝은 타원 위에도 어두운 바깥에도 걸치니까, 밝은 테두리를 깔고 그 위에
+   어두운 선을 얹어서 어느 쪽에서든 보이게 합니다. */
+function keyCap(x, y, sz, dir, on, under){
+  var h = sz/2 + (under?2:0), r = 4;
+  ctx.beginPath();
+  ctx.moveTo(x-h+r, y-h);
+  ctx.lineTo(x+h-r, y-h); ctx.quadraticCurveTo(x+h, y-h, x+h, y-h+r);
+  ctx.lineTo(x+h, y+h-r); ctx.quadraticCurveTo(x+h, y+h, x+h-r, y+h);
+  ctx.lineTo(x-h+r, y+h); ctx.quadraticCurveTo(x-h, y+h, x-h+r, y+h);
+  ctx.lineTo(x-h, y-h+r); ctx.quadraticCurveTo(x-h, y-h, x-h+r, y-h);
+  ctx.closePath();
+  if(under){
+    ctx.strokeStyle = COL.lit; ctx.lineWidth = 4.4; ctx.stroke();
+    if(on){ ctx.fillStyle = COL.lit; ctx.fill(); }
+    return;
+  }
+  if(on){ ctx.fillStyle = COL.ink; ctx.fill(); }
+  else { ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.8; ctx.stroke(); }
+
+  var a = 4.6;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(dir*Math.PI/2);
+  ctx.beginPath();
+  ctx.moveTo(0, -a);
+  ctx.lineTo(a*0.86, a*0.62);
+  ctx.lineTo(-a*0.86, a*0.62);
+  ctx.closePath();
+  ctx.fillStyle = on ? COL.paper : COL.ink;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHint(){
+  var px = view.ox + player.x*view.s;
+  var py = view.oy + player.y*view.s;
+  var pulse = 0.72 + 0.28*Math.sin(hintT*2.4);
   ctx.save();
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.globalAlpha=0.5;
-  ctx.strokeStyle=COL.ghost; ctx.lineWidth=1.6;
-  ctx.beginPath(); ctx.arc(stick.ox,stick.oy,STICK_MAX,0,Math.PI*2); ctx.stroke();
-  ctx.globalAlpha=0.28;
-  ctx.beginPath(); ctx.arc(stick.ox,stick.oy,7,0,Math.PI*2); ctx.stroke();
-  ctx.globalAlpha=0.72;
-  ctx.fillStyle=COL.ink;
-  ctx.beginPath();
-  ctx.arc(stick.ox+stick.dx*STICK_MAX, stick.oy+stick.dy*STICK_MAX, 15, 0, Math.PI*2);
-  ctx.fill();
+
+  if(FINE){
+    var sz = 26, gap = 30, by = py + 54;
+    var cur = Math.floor(hintT*1.5)%4;      // 위 오른쪽 아래 왼쪽
+    var pos = [[px, by-gap, 0],[px+gap, by, 1],[px, by, 2],[px-gap, by, 3]];
+    var pass, i;
+    for(pass=0; pass<2; pass++){
+      ctx.globalAlpha = hint * (pass===0 ? 0.34 : 0.85*pulse);
+      for(i=0;i<4;i++) keyCap(pos[i][0], pos[i][1], sz, pos[i][2], cur===i, pass===0);
+    }
+  } else {
+    var ang = hintT*1.5;
+    var reach = 0.55 + 0.45*Math.sin(hintT*3.0);   // 밀었다 놓았다
+    var tx = px + Math.cos(ang)*STICK_MAX*reach;
+    var ty = py + Math.sin(ang)*STICK_MAX*reach;
+
+    ctx.globalAlpha = hint*0.32;
+    ctx.strokeStyle = COL.lit; ctx.lineWidth = 4.4;
+    ctx.beginPath(); ctx.arc(px, py, STICK_MAX, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = COL.lit;
+    ctx.beginPath(); ctx.arc(tx, ty, 15.5, 0, Math.PI*2); ctx.fill();
+
+    ctx.globalAlpha = hint*0.62;
+    ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(px, py, STICK_MAX, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = hint*0.34;
+    ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = hint*0.88*pulse;
+    ctx.fillStyle = COL.ink;
+    ctx.beginPath(); ctx.arc(tx, ty, 13, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawStick(){
+  if(!stick) return;
+  var tx = stick.ox + stick.dx*STICK_MAX, ty = stick.oy + stick.dy*STICK_MAX;
+  ctx.save();
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  /* 밝은 밑선 — 조이스틱이 어두운 바깥에 찍혀도 보이게 */
+  ctx.globalAlpha = 0.30;
+  ctx.strokeStyle = COL.lit; ctx.lineWidth = 4.2;
+  ctx.beginPath(); ctx.arc(stick.ox, stick.oy, STICK_MAX, 0, Math.PI*2); ctx.stroke();
+  ctx.fillStyle = COL.lit;
+  ctx.beginPath(); ctx.arc(tx, ty, 17.5, 0, Math.PI*2); ctx.fill();
+
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.7;
+  ctx.beginPath(); ctx.arc(stick.ox, stick.oy, STICK_MAX, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 0.30;
+  ctx.beginPath(); ctx.arc(stick.ox, stick.oy, 7, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 0.78;
+  ctx.fillStyle = COL.ink;
+  ctx.beginPath(); ctx.arc(tx, ty, 15, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
 function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.fillStyle=COL.paper;
+  /* 타원 바깥은 어둠입니다. 평평하게 칠하면 화면이 죽어서,
+     타원 쪽이 조금 밝고 화면 끝으로 갈수록 깊어지게 둡니다. */
+  var scx = view.ox + arena.cx*view.s;
+  var scy = view.oy + arena.cy*view.s;
+  var far = Math.hypot(Math.max(scx, W-scx), Math.max(scy, H-scy));
+  var bg = ctx.createRadialGradient(scx, scy, arena.rx*view.s*0.9, scx, scy, far);
+  bg.addColorStop(0, COL.night2);
+  bg.addColorStop(1, COL.night);
+  ctx.fillStyle=bg;
   ctx.fillRect(0,0,W,H);
 
   ctx.save();
@@ -1518,6 +1358,7 @@ function draw(){
   drawField();
   ctx.restore();
 
+  if(phase===PHASE.INTRO && hint>0) drawHint();
   if(phase!==PHASE.MORPH && phase!==PHASE.FADE) drawStick();
 
   if(phase===PHASE.FADE){
@@ -1763,6 +1604,7 @@ function enterWake(){
   countShown = false; actsShown = false; breathDone = false;
   countEl.textContent = String(score);
   cv.style.display = "none";
+  document.body.style.background = "var(--paper)";
   uiEl.classList.add("on");
   fetchBoard(null);   // 버튼 누르기 전에 미리 받아둡니다
   if(!room.start()){
@@ -1982,7 +1824,6 @@ function loop(now){
 }
 
 resize();
-outsideFill();
 reset();
 requestAnimationFrame(loop);
 </script>
